@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {  
+  id            String     @id @default(uuid())
+  clerkUserId   String     @unique
+  email         String     @unique
+  name          String?
+  imageUrl      String?
+  industry      String?
+  industryInsight IndustryInsight? @relation(fields: [industry], references:[industry])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  bio          String?
+  experience   Int?
+  skills       String[]
+
+  assessments   Assessment[]
+  resume        Resume?
+  coverLetter   CoverLetter[]
+  mockInterviews MockInterview[]  // 👈 Add this line
+  chatsession     ChatSession[]
+
+
+
+
+}
+
+
+model Assessment {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  quizScore     Float     // Overall quiz score
+  questions     Json[]    // Array of {question, answer, userAnswer, isCorrect}
+  category      String    // "Technical", "Behavioral", etc.
+  improvementTip String?  // AI-generated improvement tip
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Resume {
+  id          String    @id @default(cuid())
+  userId      String    @unique    // One resume per user
+  user        User      @relation(fields: [userId], references: [id])
+  content     String    @db.Text // Markdown content
+  atsScore    Float?
+  feedback    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model CoverLetter {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  content         String    // Markdown content
+  jobDescription  String?
+  companyName     String    // Name of the company applying to
+  jobTitle        String    // Position applying for
+  status          String    @default("draft") // draft, completed
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+// Combined Industry Trends and Salary Insights
+model IndustryInsight {
+  id            String    @id @default(cuid())
+  industry      String    @unique  // The industry this data belongs to (e.g., "tech-software-development")
+  
+  // Users in this industry
+  users         User[]
+  
+  // Salary data
+  salaryRanges  Json[]    // Array of { role: string, min: float, max: float, median: float, location: string? }
+  
+  // Industry trends
+  growthRate    Float     // Industry growth rate
+  demandLevel   DemandLevel    // "High", "Medium", "Low"
+  topSkills     String[]  // Most in-demand skills
+  
+  // Market conditions
+  marketOutlook MarketOutlook   // "Positive", "Neutral", "Negative"
+  keyTrends     String[]  // Array of current industry trends
+  
+  // Learning suggestions
+  recommendedSkills String[]  // Skills recommended for the industry
+  
+  lastUpdated   DateTime  @default(now())
+  nextUpdate    DateTime  // Scheduled update time
+
+  @@index([industry])
+}
+
+enum DemandLevel{
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum MarketOutlook{
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+model MockInterview {
+  id             String   @id @default(cuid())
+  jsonMockResp   String   @db.Text
+  jobPosition    String
+  jobDesc        String
+  jobExperience  String
+  createdBy      String   // Can be linked to User if needed in future
+  createdAt      DateTime @default(now())
+  mockId         String   @unique
+
+  userId         String
+  user           User     @relation(fields: [userId], references: [id])
+  
+
+  
+
+  userAnswers    UserAnswer[]
+}
+
+enum Rating {
+  POOR
+  AVERAGE
+  GOOD
+  EXCELLENT
+}
+
+model UserAnswer {
+  id           String   @id @default(cuid())
+  mockIdRef    String
+  mock         MockInterview @relation(fields: [mockIdRef], references: [mockId])
+  question     String
+  correctAns   String?  @db.Text
+  userAns      String?  @db.Text
+  feedback     String?  @db.Text
+  rating       Int?
+  userEmail    String?
+  createdAt    DateTime @default(now())
+
+  @@index([mockIdRef])
+}
+
+model ChatSession {
+  id        String      @id @default(cuid())
+  title     String?
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  messages  ChatMessage[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model ChatMessage {
+  id          String      @id @default(cuid())
+  content     String
+  role        String      // "user" | "assistant"
+  sessionId   String
+  session     ChatSession @relation(fields: [sessionId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@index([sessionId])
+}
